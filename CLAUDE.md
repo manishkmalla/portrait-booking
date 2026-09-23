@@ -24,13 +24,19 @@ touches booking or cancellation must preserve this and keep its test passing.
 
 ## Stack
 
-- `api/`: Node 20, TypeScript (strict), Express, Zod, Drizzle ORM + `pg`, bcrypt, JWT in an httpOnly cookie
+- `api/`: Node 24, TypeScript (strict), Express, Zod, Drizzle ORM + `pg`, bcryptjs, JWT in an httpOnly cookie
 - `web/`: React + Vite + TypeScript, plain `fetch` wrapper in `src/lib/api.ts`
 - `db`: Postgres 16 in Docker Compose (named volume)
 - Tests: Vitest (+ Supertest for API routes)
 
 Before using any package API, check the installed version in the relevant
 `package.json`. Do not add a dependency without asking first.
+
+- `api/` and `web/` each commit their `package-lock.json`; Dockerfiles run
+  `npm ci` against it for reproducible installs.
+- `api/` and `web/` each include a project-local `.npmrc` pinning the public
+  npm registry (`registry.npmjs.org`), independent of any registry configured
+  in a developer's global npm config.
 
 ## Commands
 
@@ -43,6 +49,12 @@ npm --prefix api run typecheck
 npm --prefix api run db:generate     # after editing api/src/db/schema.ts
 npm --prefix web run dev
 ```
+
+`.env` is optional for `docker compose up --build` — sensible defaults are
+baked into `docker-compose.yml`. Copy `.env.example` to `.env` for host-run
+commands (`npm --prefix api test`, `npm --prefix api run dev`,
+`npm --prefix web run dev`), since Postgres is only reachable at `localhost`
+outside Docker's network.
 
 URLs: web http://localhost:5173 · api http://localhost:3000
 
@@ -86,6 +98,10 @@ web/src/
   generated migrations.
 - Parameterised queries only. The `sql` template tag is fine where Drizzle's
   query builder is unclear; never concatenate strings into SQL.
+- Fixed-value columns (`users.role`, `bookings.status`) use Drizzle's
+  `text(column, { enum: [...] })` plus a Postgres `CHECK` constraint, not
+  `pgEnum`. Adding a new value later is a plain `ALTER TABLE ... CHECK`
+  migration instead of the more invasive `ALTER TYPE` a Postgres enum needs.
 
 **TypeScript and React**
 - `strict: true`, no `any` (use `unknown` and narrow), no unexplained `as` casts.
@@ -95,7 +111,8 @@ web/src/
 **Security (local-app appropriate)**
 - Config comes from environment variables read in `api/src/config.ts`.
   `.env` is gitignored; keep `.env.example` complete and up to date.
-- Hash passwords with bcrypt. Never log passwords, tokens or cookies.
+- Hash passwords with bcryptjs (pure JS; avoids native-module build issues in
+  Docker). Never log passwords, tokens or cookies.
 - CORS allows only the web origin from config, with credentials.
 
 ## Testing
