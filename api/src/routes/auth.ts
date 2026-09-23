@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { COOKIE_NAME, COOKIE_OPTIONS, requireUser } from '../middleware/auth.js';
-import { HttpError } from '../middleware/errors.js';
+import { HttpError, isUniqueViolation } from '../middleware/errors.js';
 import { findUserByEmail, findUserById, registerUser, signToken, verifyPassword } from '../services/auth.js';
 
 export const authRouter = Router();
@@ -10,13 +10,6 @@ const credentialsSchema = z.object({
   email: z.email(),
   password: z.string().min(8),
 });
-
-// Drizzle wraps the underlying pg error in a DrizzleQueryError, so the
-// Postgres error code (23505 = unique_violation) is on `.cause`, not on the
-// error itself.
-function isUniqueViolation(err: unknown): boolean {
-  return typeof err === 'object' && err !== null && 'cause' in err && (err.cause as { code?: string } | undefined)?.code === '23505';
-}
 
 authRouter.post('/register', async (req, res, next) => {
   try {
