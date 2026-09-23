@@ -16,6 +16,13 @@ export class HttpError extends Error {
   }
 }
 
+// Drizzle wraps the underlying pg error in a DrizzleQueryError, so the
+// Postgres error code (23505 = unique_violation) is on `.cause`, not on the
+// error itself.
+export function isUniqueViolation(err: unknown): boolean {
+  return typeof err === 'object' && err !== null && 'cause' in err && (err.cause as { code?: string } | undefined)?.code === '23505';
+}
+
 // Catch-all: known error types map to their status code, anything else is
 // an unexpected 500.
 export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {

@@ -14,5 +14,9 @@ export default defineConfig({
     env: {
       DATABASE_URL: testDatabaseUrl,
     },
+    // Every test file shares one real Postgres database and truncates it in
+    // afterEach; running files in parallel lets one file's truncate wipe
+    // rows another file's test is mid-use of. Run files one at a time.
+    fileParallelism: false,
   },
 });
