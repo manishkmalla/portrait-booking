@@ -5,14 +5,16 @@ import { z } from 'zod';
 // Loads the repo-root .env for host-run commands (npm --prefix api dev/test).
 // Inside Docker, env vars come from docker-compose's `environment:` blocks
 // and no .env is bind-mounted into the container, so this is a silent no-op.
-dotenv.config({ path: resolve(import.meta.dirname, '../../.env') });
+dotenv.config({ path: resolve(import.meta.dirname, '../../.env'), quiet: true });
 
 const envSchema = z.object({
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
   TEST_DATABASE_URL: z.string().min(1, 'TEST_DATABASE_URL is required'),
-  JWT_SECRET: z.string().min(1, 'JWT_SECRET is required'),
+  JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),
   WEB_ORIGIN: z.string().url('WEB_ORIGIN must be a valid URL'),
   PORT: z.coerce.number().int().positive().default(3000),
+  // Only used to gate the auth cookie's `secure` flag (see middleware/auth.ts).
+  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
 });
 
 function loadConfig() {

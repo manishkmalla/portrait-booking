@@ -43,8 +43,9 @@ Before using any package API, check the installed version in the relevant
 ```bash
 docker compose up --build            # full stack; migrations + seed run on api start
 docker compose down -v               # wipe the DB (use for fresh-clone checks)
-docker compose up -d db              # DB only, for running tests locally
-npm --prefix api test                # API tests (needs the db container)
+docker compose exec api npm test     # API tests — primary path, no host setup needed
+docker compose up -d db              # DB only, for running tests/dev on the host instead
+npm --prefix api test                # API tests, host-run alternative (needs .env, see below)
 npm --prefix api run typecheck
 npm --prefix api run db:generate     # after editing api/src/db/schema.ts
 npm --prefix web run dev
@@ -55,6 +56,12 @@ baked into `docker-compose.yml`. Copy `.env.example` to `.env` for host-run
 commands (`npm --prefix api test`, `npm --prefix api run dev`,
 `npm --prefix web run dev`), since Postgres is only reachable at `localhost`
 outside Docker's network.
+
+Prefer `docker compose exec api npm test` over the host-run path: running
+`docker compose up` first leaves `api/node_modules` and `web/node_modules`
+owned by root on the host (anonymous-volume mount points, and neither
+container drops root), which makes a later host `npm ci`/`npm install`/
+`npm --prefix api test` fail with `EACCES`.
 
 URLs: web http://localhost:5173 · api http://localhost:3000
 
@@ -82,6 +89,10 @@ web/src/
   this without discussing it first.
 - A partial unique index prevents one user holding two confirmed bookings on
   the same slot. Map Postgres error `23505` to `409 Conflict`.
+- Drizzle wraps the underlying `pg` error in a `DrizzleQueryError`, so the
+  Postgres error code lives on `err.cause.code`, not `err.code` — check
+  `(err as { cause?: { code?: string } }).cause?.code === '23505'`, confirmed
+  while implementing auth's duplicate-email check.
 - Cancellation sets `status = 'cancelled'`; never hard-delete bookings.
 
 **API**

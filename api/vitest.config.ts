@@ -2,7 +2,7 @@ import { resolve } from 'node:path';
 import dotenv from 'dotenv';
 import { defineConfig } from 'vitest/config';
 
-dotenv.config({ path: resolve(process.cwd(), '../.env') });
+dotenv.config({ path: resolve(process.cwd(), '../.env'), quiet: true });
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL ?? 'postgres://booking:booking@localhost:5432/booking_test';
 

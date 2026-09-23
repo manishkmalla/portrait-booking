@@ -2,7 +2,7 @@ import { resolve } from 'node:path';
 import dotenv from 'dotenv';
 import { runMigrations } from '../db/migrate.js';
 
-dotenv.config({ path: resolve(process.cwd(), '../.env') });
+dotenv.config({ path: resolve(process.cwd(), '../.env'), quiet: true });
 
 // Runs once before any test file, migrating booking_test so every test
 // starts against an up-to-date schema.
