@@ -32,6 +32,31 @@ touches booking or cancellation must preserve this and keep its test passing.
 Before using any package API, check the installed version in the relevant
 `package.json`. Do not add a dependency without asking first.
 
+- Exception: `web/` uses real Tailwind CSS (`tailwindcss`, `@tailwindcss/vite`)
+  plus shadcn/ui-generated components under `web/src/components/ui/` (added
+  via the `shadcn` CLI: currently `button`, `calendar`, `card`, pulling in
+  `cn`, `class-variance-authority`, `radix-ui`, `tw-animate-css`,
+  `@fontsource-variable/geist`, `react-day-picker`, `lucide-react`) — a
+  deliberate, developer-approved exception after an earlier hand-rolled
+  plain-CSS calendar wasn't polished enough. Scoping: Tailwind utility
+  classes are only used inside shadcn-generated files; the rest of the app
+  keeps its plain CSS in `web/src/index.css`. Two things to know when
+  touching either:
+  - Tailwind's utilities live in `@layer utilities`, and any *unlayered*
+    plain CSS rule beats a layered one regardless of selector specificity —
+    that's what keeps the rest of the app's plain-CSS styling intact
+    against Tailwind's global preflight reset without extra work.
+  - Conversely, a plain rule that also matches a shadcn element (e.g. a
+    bare `button` selector matching shadcn's `Button`, which always renders
+    with `data-slot="button"`) will clobber that component's Tailwind
+    styling for the same reason. Scope plain selectors like
+    `button:where(:not([data-slot]))` to exclude shadcn elements — `:where()`
+    keeps the added specificity at zero so it doesn't fight sibling rules
+    like `.link-button`.
+  This doesn't relax the "ask first" rule for anything else, including
+  adding more shadcn components — each addition should still be a
+  conscious call, not a default.
+
 - `api/` and `web/` each commit their `package-lock.json`; Dockerfiles run
   `npm ci` against it for reproducible installs.
 - `api/` and `web/` each include a project-local `.npmrc` pinning the public
