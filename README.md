@@ -2,7 +2,30 @@
 
 ## What it is and why
 
-_TODO_
+A small full-stack booking app for portrait photography sessions. A
+photographer publishes time slots with a capacity; clients register, browse
+upcoming availability on a calendar, and book or cancel a session. It's an
+interview take-home, so the priority throughout has been a correct,
+well-tested core — the booking concurrency guarantee, specifically — over
+breadth of features, with code a developer can walk through and extend live
+in an interview rather than a black box.
+
+- **API** (`api/`): Node + TypeScript (strict), Express, Zod validation,
+  Drizzle ORM over Postgres, JWT auth in an httpOnly cookie.
+- **Web** (`web/`): React + Vite, mostly plain CSS. The calendar specifically
+  is the one exception: it uses Tailwind CSS + shadcn/ui rather than more
+  plain CSS. A hand-rolled plain-CSS calendar came first and worked, but
+  wasn't visually polished enough; after weighing the tradeoff (bundle size,
+  running a second styling system alongside plain CSS everywhere else), the
+  call was made to bring in the real thing for just that one component.
+  Adopting Tailwind's global preflight reset surfaced two real bugs in the
+  process — both fixed and documented inline in `index.css` and CLAUDE.md: a
+  CSS cascade-layers conflict where plain, unlayered button/input rules
+  silently overrode Tailwind's own component styling, and native
+  form-control text (date/time/number inputs) rendering unreadably under OS
+  dark mode because the page never declared `color-scheme: light`.
+- See "Architecture and how double-booking is prevented" below for the one
+  invariant that matters and how it's enforced under concurrency.
 
 ## Quick start
 
@@ -94,9 +117,41 @@ npm --prefix api test
 > reusing the old volume contents on top of the freshly built image, so a
 > plain `--build` can silently run with the previous `node_modules`.
 
+### Manual frontend checklist
+
+The frontend has no automated tests (time box — see CLAUDE.md). Verify it
+by clicking through these flows against `http://localhost:5173`:
+
+**As a client:**
+1. Register with a new email and an 8+ character password.
+2. Reload the page — confirm the session restores (still logged in) instead
+   of dropping back to the login form.
+3. On the Slots calendar, confirm days with availability are visibly marked
+   and clickable, and days without aren't.
+4. Book a slot — its remaining count should update in place immediately.
+   Try booking the same slot again and confirm the resulting `409` ("You
+   already have a confirmed booking for this slot") renders inline instead
+   of crashing the page.
+5. Open My Bookings, confirm the booking shows as "Confirmed" with a Cancel
+   button. Cancel it, confirm the status flips to "Cancelled" and the
+   button disappears.
+6. Go back to Slots and confirm that slot's remaining count is back up.
+7. Log out — confirm it returns to the login form.
+
+**As the photographer** (`photographer@demo.test` / `Demo123!`):
+
+8. Confirm the header shows the `photographer` role and a "Create Slot" tab
+   in place of "My Bookings".
+9. Create a slot: pick a date on the calendar, set a start and end time and
+   a capacity, submit, and confirm a success message appears and the form
+   clears.
+10. Try an invalid one (end time before start time, or a date/time already
+    in the past) and confirm the API's validation message renders inline
+    without crashing the page.
+
 ## Time spent
 
-_TODO_
+4 hours, in line with the time box.
 
 ## Known issues and cuts
 
@@ -119,7 +174,20 @@ _TODO_
   phase — a client retrying a timed-out booking request could otherwise end
   up erroring on the resulting `23505` instead of getting back its original
   booking.
+- Server-side date-range filtering for `GET /api/slots`. The calendar
+  currently fetches *all* upcoming slots once (walking cursor pages
+  client-side) and groups them by day in the browser — fine at this app's
+  scale, but it'd need a real `?from=&to=` query param on the endpoint if
+  the number of published slots ever got large.
+- Token revocation and login rate limiting (see "Known issues and cuts").
 
 ## How AI tools were used
 
-_TODO_
+Built end to end with [Claude Code](https://claude.com/claude-code),
+following the plan-first, verify-before-code, run-and-report workflow this
+repo's own CLAUDE.md already prescribes — a written plan and explicit
+approval before touching auth, the schema, the booking transaction, or any
+UI redesign; every "it works" backed by an actual command run, including a
+real headless browser for frontend changes, not just a passing build.
+
+
